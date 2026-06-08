@@ -28,6 +28,9 @@ input,select,textarea,button{font-family:'Noto Sans JP',sans-serif;}
 .btn-result{background:#252530;border:none;border-radius:8px;padding:5px 12px;color:#C8F135;font-size:11px;font-weight:700;cursor:pointer;}
 .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#0D0D12;border-top:1px solid #1A1A1F;display:flex;padding:10px 0 20px;}
 .nav button{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;}
+/* 強化バッジスタイル */
+.badge-zero{color:#888;font-size:10px;font-weight:700;background:#252530;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.chart-container{background:#1A1A1F;border-radius:16px;padding:16px;margin-bottom:16px;}
 </style>
 </head>
 <body>
@@ -93,6 +96,17 @@ function getFactorStats(){
   return FACTORS.map(f=>({...f,...st[f.id],rate:st[f.id].total>0?Math.round(st[f.id].hits/st[f.id].total*100):null})).filter(f=>f.total>0).sort((a,b)=>(b.rate||0)-(a.rate||0));
 }
 
+// 累計損益グラフ用のデータ生成(古い順)
+function getTrendData() {
+  const decided = state.records.filter(x => x.hit !== null && Number(x.stake) > 0).reverse();
+  let currentProfit = 0;
+  return decided.map(x => {
+    const payout = x.hit ? (Number(x.payout) || 0) : 0;
+    currentProfit += (payout - (Number(x.stake) || 0));
+    return currentProfit;
+  });
+}
+
 function saveRecord(){
   const f=state.form;
   if(!f.raceNo||!f.prediction)return;
@@ -152,8 +166,48 @@ function buildApp(){
   `;
 }
 
+// SVGによるカスタム折れ線グラフ生成
+function buildSvgChart(profits) {
+  if(profits.length === 0) return `<div style="text-align:center;color:#444;font-size:12px;padding:20px 0;">レース結果を入力するとグラフが表示されます</div>`;
+  
+  const data = [0, ...profits]; // 初期点0からスタート
+  const max = Math.max(...data, 1000);
+  const min = Math.min(...data, -1000);
+  const range = max - min;
+  
+  const width = 360;
+  const height = 120;
+  const padding = 10;
+  
+  const points = data.map((val, index) => {
+    const x = padding + (index / (data.length - 1)) * (width - padding * 2);
+    const y = height - padding - ((val - min) / range) * (height - padding * 2);
+    return `${x},${y}`;
+  }).join(" ");
+
+  // ゼロラインのY座標
+  const zeroY = height - padding - ((0 - min) / range) * (height - padding * 2);
+
+  return `
+    <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" style="overflow:visible;">
+      <!-- ゼロ基準線 -->
+      <line x1="${padding}" y1="${zeroY}" x2="${width-padding}" y2="${zeroY}" stroke="#2A2A30" stroke-width="1" stroke-dasharray="4,4"/>
+      <!-- 損益ライン -->
+      <polyline fill="none" stroke="#C8F135" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${points}" />
+      <!-- 最新のプロット点 -->
+      ${data.length > 1 ? `<circle cx="${padding + (data.length - 1) * (width - padding * 2) / (data.length - 1)}" cy="${height - padding - ((data[data.length-1] - min) / range) * (height - padding * 2)}" r="4" fill="#C8F135" />` : ''}
+    </svg>
+    <div style="display:flex;justify-content:space-between;color:#444;font-size:10px;margin-top:6px;font-family:'Bebas Neue',sans-serif;">
+      <span>START</span>
+      <span>${data.length-1} RACES</span>
+    </div>
+  `;
+}
+
 function buildHome(s){
   const recent=state.records.slice(0,5);
+  const profits = getTrendData();
+  
   return `
   <div style="display:flex;gap:8px;margin-bottom:8px;">
     <div class="stat"><div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:6px;">的中率</div><div style="color:#C8F135;font-size:22px;font-weight:800;font-family:'Bebas Neue',sans-serif;">${s.hitRate}%</div><div style="color:#444;font-size:10px;margin-top:4px;">${s.hits}/${s.decided}レース</div></div>
@@ -163,6 +217,13 @@ function buildHome(s){
     <div class="stat"><div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:6px;">累計損益</div><div style="color:${s.profit>=0?"#C8F135":"#FF5A5A"};font-size:22px;font-weight:800;font-family:'Bebas Neue',sans-serif;">${s.profit>=0?"+":""}${fmtNum(s.profit)}円</div></div>
     <div class="stat"><div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:6px;">総投資額</div><div style="color:#888;font-size:22px;font-weight:800;font-family:'Bebas Neue',sans-serif;">${fmtNum(s.totalStake)}円</div></div>
   </div>
+  
+  <!-- 要望：累計損益グラフの追加 -->
+  <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">累計損益推移</div>
+  <div class="chart-container">
+    ${buildSvgChart(profits)}
+  </div>
+
   <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">最近の予想</div>
   ${recent.length===0?`<div style="text-align:center;color:#333;padding:50px 0;font-size:14px;">まだ予想がありません<br/><span style="color:#C8F135;">＋ 予想追加</span>から記録しよう</div>`:recent.map(r=>buildCard(r)).join("")}
   `;
@@ -180,26 +241,30 @@ function buildRecords(){
 }
 
 function buildCard(r){
-  const hitColor=r.hit===true?"#C8F135":r.hit===false?"#FF5A5A":"#333";
-  const hitLabel=r.hit===true?"的中":r.hit===false?"外れ":"未入力";
   const isZero=Number(r.stake)===0;
+  const hitColor=isZero?"#555":r.hit===true?"#C8F135":r.hit===false?"#FF5A5A":"#333";
+  
+  // 要望：見送りレースが一目でわかるバッジ強化表示
+  const hitLabel=isZero?"📋 見送り":r.hit===true?"的中":r.hit===false?"外れ":"未入力";
+  const badgeClass=isZero?"badge-zero":"";
+  const badgeStyle=isZero?"":`color:${hitColor};background:${hitColor}22;`;
+
   return `
-  <div class="card" data-detail="${r.id}" style="border-left:3px solid ${hitColor};">
+  <div class="card" data-detail="${r.id}" style="border-left:3px solid ${isZero?'#444':hitColor}; opacity: ${isZero? 0.65 : 1}">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <span style="color:#666;font-size:11px;">${fmtDate(r.date)}</span>
         <span style="font-size:13px;font-weight:700;">${r.track} ${r.raceNo}R</span>
         <span class="tag">${r.grade||"FI"}</span>
         <span class="tag">${r.betType}</span>
-        ${isZero?`<span class="tag">見送り</span>`:""}
       </div>
-      <span style="color:${hitColor};font-size:10px;font-weight:700;background:${hitColor}22;padding:3px 9px;border-radius:20px;white-space:nowrap;">${hitLabel}</span>
+      <span class="${badgeClass}" style="${badgeStyle} font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;">${hitLabel}</span>
     </div>
     <div style="font-size:20px;font-weight:900;font-family:'Bebas Neue',sans-serif;letter-spacing:0.08em;margin-bottom:4px;">${r.prediction}</div>
     ${(r.factors&&r.factors.length>0)?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;">${r.factors.map(fid=>{const f=FACTORS.find(x=>x.id===fid);return f?`<span style="font-size:11px;color:#666;">${f.icon}</span>`:""}).join("")}</div>`:""}
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <div style="display:flex;gap:10px;font-size:11px;">
-        ${!isZero?`<span style="color:#555;">賭:${fmtNum(r.stake)}円</span>`:""}
+        ${!isZero?`<span style="color:#555;">賭:${fmtNum(r.stake)}円</span>`:`<span style="color:#444;">投資なし</span>`}
         ${r.hit===true&&r.payout>0?`<span style="color:#C8F135;">払:${fmtNum(r.payout)}円</span>`:""}
       </div>
       ${r.hit===null?`<button class="btn-result" data-result="${r.id}">結果入力</button>`:""}
@@ -217,6 +282,7 @@ function buildAnalysis(){
     trackStats[r.track].stake+=Number(r.stake)||0;
   });
   const trackArr=Object.entries(trackStats).sort((a,b)=>b[1].total-a[1].total);
+  
   const gradeStats={};
   state.records.filter(r=>r.hit!==null).forEach(r=>{
     const g=r.grade||"FI";
@@ -230,7 +296,8 @@ function buildAnalysis(){
 
   return `
   ${fs.length>0?`
-    <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">予想根拠別 的中率</div>
+    <!-- 要望：予想根拠別の的中率（横棒グラフ） -->
+    <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">予想根拠別 的中率（勝ちやすい根拠の分析）</div>
     ${fs.map(f=>`
     <div style="background:#1A1A1F;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
       <div style="width:80px;font-size:12px;">${f.icon} ${f.label}</div>
@@ -240,19 +307,23 @@ function buildAnalysis(){
     </div>`).join("")}
     <div style="margin-bottom:16px;"></div>
   `:""}
+  
   ${gradeArr.length>0?`
+    <!-- 要望：グレード別 的中率 -->
     <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">グレード別 的中率</div>
     <div style="display:flex;gap:8px;margin-bottom:16px;">
       ${gradeArr.map(g=>`<div style="flex:1;background:#1A1A1F;border-radius:12px;padding:12px;text-align:center;"><div style="color:#555;font-size:10px;margin-bottom:6px;">${g.grade}</div><div style="color:#C8F135;font-size:20px;font-weight:800;font-family:'Bebas Neue',sans-serif;">${g.rate}%</div><div style="color:#444;font-size:10px;">${g.hits}/${g.total}</div></div>`).join("")}
     </div>
   `:""}
-  <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">競輪場別 的中率</div>
+  
+  <!-- 要望：競輪場別 的中率＋回収率 -->
+  <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">競輪場別 的中率・回収率</div>
   ${trackArr.map(([track,s])=>{
     const rate=s.total>0?Math.round(s.hits/s.total*100):0;
     const rec=s.stake>0?Math.round(s.payout/s.stake*100):0;
     return`<div style="background:#1A1A1F;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
       <div style="width:48px;font-size:13px;font-weight:700;">${track}</div>
-      <div style="flex:1;"><div class="bar-bg"><div class="bar-fill" style="width:${rate}%;"></div></div><div style="color:#444;font-size:10px;margin-top:3px;">回収率 ${rec}%</div></div>
+      <div style="flex:1;"><div class="bar-bg"><div class="bar-fill" style="width:${rate}%;"></div></div><div style="color:${rec>=100?'#C8F135':'#888'};font-size:10px;margin-top:3px;">回収率 ${rec}%</div></div>
       <div style="color:#C8F135;font-size:13px;font-weight:700;width:34px;text-align:right;">${rate}%</div>
       <div style="color:#444;font-size:10px;width:30px;text-align:right;">${s.hits}/${s.total}</div>
     </div>`;
@@ -275,7 +346,8 @@ function buildFormModal(){
         <div style="flex:1;"><label class="label">競輪場</label><select class="input" id="f-track" style="appearance:none;">${TRACKS.map(t=>`<option value="${t}" ${f.track===t?"selected":""}>${t}</option>`).join("")}</select></div>
         <div style="width:80px;"><label class="label">グレード</label><select class="input" id="f-grade" style="appearance:none;">${GRADES.map(g=>`<option value="${g}" ${f.grade===g?"selected":""}>${g}</option>`).join("")}</select></div>
       </div>
-      <div style="margin-bottom:12px;"><label class="label">出走選手（番号＋名前）</label><textarea class="input" id="f-players" rows="4" placeholder="例:&#10;1 中川誠一郎&#10;2 松浦悠士" style="resize:none;font-size:13px;">${f.players}</textarea></div>
+      <!-- 要望：出走選手（自由入力） -->
+      <div style="margin-bottom:12px;"><label class="label">出走選手（番号＋名前 自由入力）</label><textarea class="input" id="f-players" rows="4" placeholder="例:&#10;1 栗山裕康&#10;2 山田太郎" style="resize:none;font-size:13px;">${f.players}</textarea></div>
       <div style="margin-bottom:12px;">
         <label class="label">式別</label>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -286,6 +358,7 @@ function buildFormModal(){
         <div style="flex:1;"><label class="label">買い目</label><input class="input" id="f-prediction" value="${f.prediction}" placeholder="例: 1-3-5"/></div>
         <div style="width:100px;"><label class="label">賭け金（円）</label><input class="input" type="number" id="f-stake" value="${f.stake}" placeholder="0=見送り"/></div>
       </div>
+      <!-- 要望：予想根拠の複数選択 -->
       <div style="margin-bottom:12px;">
         <label class="label">予想根拠（複数選択可）</label>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -310,15 +383,18 @@ function buildResultModal(){
         <button id="btn-hit" style="flex:1;padding:16px;border-radius:12px;border:2px solid #2A2A30;background:#1A1A1F;color:#555;font-size:15px;font-weight:700;cursor:pointer;">🎯 的中！</button>
         <button id="btn-miss" style="flex:1;padding:16px;border-radius:12px;border:2px solid #2A2A30;background:#1A1A1F;color:#555;font-size:15px;font-weight:700;cursor:pointer;">💔 外れ</button>
       </div>
+      <!-- 要望：払戻金（手入力） -->
       <div id="payout-area" style="display:none;margin-bottom:20px;"><label class="label">払戻金（円）</label><input class="input" type="number" id="f-payout" placeholder="5000"/></div>
       <button class="btn-primary" id="btn-confirm" style="background:#333;cursor:default;">確定</button>
     </div>
   </div>`;
 }
 
+// 要望：タップした時の詳細画面モーダル（出走選手・根拠・結果まとめ）
 function buildDetailModal(){
   const r=state.showDetail;
-  const hitColor=r.hit===true?"#C8F135":r.hit===false?"#FF5A5A":"#555";
+  const isZero=Number(r.stake)===0;
+  const hitColor=isZero?"#888":r.hit===true?"#C8F135":r.hit===false?"#FF5A5A":"#555";
   return `
   <div class="overlay" id="overlay-detail">
     <div class="sheet" onclick="event.stopPropagation()">
@@ -331,14 +407,14 @@ function buildDetailModal(){
       <div style="background:#1A1A1F;border-radius:12px;padding:12px 14px;margin-bottom:12px;">
         <div style="color:#555;font-size:10px;margin-bottom:8px;">買い目</div>
         <div style="font-size:24px;font-weight:900;font-family:'Bebas Neue',sans-serif;letter-spacing:0.08em;">${r.prediction}</div>
-        <div style="color:#888;font-size:12px;margin-top:4px;">賭け金: ${Number(r.stake)===0?"見送り（0円）":fmtNum(r.stake)+"円"}</div>
+        <div style="color:#888;font-size:12px;margin-top:4px;">賭け金: ${isZero?"見送り（0円）":fmtNum(r.stake)+"円"}</div>
       </div>
       ${r.factors&&r.factors.length>0?`<div style="margin-bottom:12px;"><div style="color:#555;font-size:10px;margin-bottom:8px;">予想根拠</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${r.factors.map(fid=>{const f=FACTORS.find(x=>x.id===fid);return f?`<span style="background:#C8F13522;color:#C8F135;border:1px solid #C8F13544;border-radius:8px;padding:4px 10px;font-size:12px;">${f.icon} ${f.label}</span>`:""}).join("")}</div></div>`:""}
       ${r.memo?`<div style="background:#1A1A1F;border-radius:12px;padding:12px 14px;margin-bottom:16px;"><div style="color:#555;font-size:10px;margin-bottom:6px;">メモ</div><div style="font-size:13px;color:#bbb;line-height:1.6;">${r.memo}</div></div>`:""}
       <div style="display:flex;gap:8px;margin-bottom:16px;">
         ${r.hit===null
           ?`<button id="btn-go-result" style="flex:1;background:#C8F135;color:#0D0D12;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:900;cursor:pointer;">結果を入力する</button>`
-          :`<div style="flex:1;background:${r.hit?"#C8F13522":"#FF5A5A22"};border:1px solid ${r.hit?"#C8F135":"#FF5A5A"};border-radius:12px;padding:14px;text-align:center;"><div style="color:${hitColor};font-weight:900;font-size:16px;">${r.hit?"🎯 的中！":"💔 外れ"}</div>${r.hit&&r.payout>0?`<div style="color:#C8F135;font-size:13px;margin-top:4px;">払戻: ${fmtNum(r.payout)}円</div>`:""}</div>`
+          :`<div style="flex:1;background:${isZero?'#252530':r.hit?'#C8F13522':'#FF5A5A22'};border:1px solid ${hitColor};border-radius:12px;padding:14px;text-align:center;"><div style="color:${hitColor};font-weight:900;font-size:16px;">${isZero?'📋 見送り':r.hit?'🎯 的中！':'💔 外れ'}</div>${r.hit&&r.payout>0?`<div style="color:#C8F135;font-size:13px;margin-top:4px;">払戻: ${fmtNum(r.payout)}円</div>`:""}</div>`
         }
         <button id="btn-delete" style="background:#1A1A1F;border:none;border-radius:12px;padding:14px 16px;color:#FF5A5A;cursor:pointer;font-size:13px;">削除</button>
       </div>
