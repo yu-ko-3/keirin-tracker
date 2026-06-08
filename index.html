@@ -206,10 +206,10 @@
                     <input type="number" id="form-return" min="0" step="10" placeholder="2500" class="w-full bg-[#1f2833] border border-accent rounded-xl p-2.5 text-white focus:outline-none">
                 </div>
 
-                <!-- メモ欄（新規追加） -->
+                <!-- メモ欄（出走表・並び予想用） -->
                 <div>
-                    <label class="block text-xs text-gray-400 font-bold mb-1">展開・狙い目メモ</label>
-                    <textarea id="form-memo" rows="2" placeholder="並び、ライン、軸にした理由など" class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-accent resize-none"></textarea>
+                    <label class="block text-xs text-gray-400 font-bold mb-1">出走表・並び・展開メモ</label>
+                    <textarea id="form-memo" rows="6" class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2.5 text-white font-mono text-xs focus:outline-none focus:border-accent resize-none"></textarea>
                 </div>
 
                 <button type="submit" class="w-full bg-accent text-black font-bold py-3 rounded-xl active:scale-98 transition mt-2 shadow-lg shadow-accent/10">
@@ -237,6 +237,9 @@
     <!-- CORE SCRIPT -->
     <script>
         let predictions = JSON.parse(localStorage.getItem('keirin_data')) || [];
+
+        // メモ欄のデフォルトテンプレート
+        const DEFAULT_MEMO_TEMPLATE = `【出走表・印】\n1 ◎ \n2 ◯ \n3 ▲ \n4 \n\n【並び予想】\n← `;
 
         window.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
@@ -272,6 +275,8 @@
         function openModal() {
             document.getElementById('prediction-modal').classList.remove('hidden');
             initDate();
+            // メモ欄にテンプレートを自動セット
+            document.getElementById('form-memo').value = DEFAULT_MEMO_TEMPLATE;
         }
 
         function closeModal() {
@@ -415,7 +420,7 @@
                     </div>`;
             }
 
-            const memoSection = p.memo ? `<p class="text-xs text-gray-500 bg-black/20 p-2 rounded-lg border border-gray-900 mt-2 break-all">${p.memo.replace(/\n/g, '<br>')}</p>` : '';
+            const memoSection = p.memo ? `<p class="text-xs text-gray-300 bg-black/40 p-2.5 rounded-lg border border-gray-800 mt-2 font-mono whitespace-pre-wrap break-all">${p.memo}</p>` : '';
 
             return `
                 <div class="bg-[#1f2833]/40 p-4 rounded-xl border border-gray-800 flex flex-col justify-between">
@@ -460,32 +465,26 @@
         }
 
         function renderAnalysis() {
-            // 競輪場集計
             const trackData = {};
-            // グレード集計
             const gradeData = {};
 
             predictions.forEach(p => {
-                // 競輪場
                 if (!trackData[p.track]) trackData[p.track] = { invest: 0, returnAmt: 0, count: 0 };
                 trackData[p.track].invest += p.invest;
                 trackData[p.track].count++;
                 if (p.status === 'hit') trackData[p.track].returnAmt += p.returnAmt;
 
-                // グレード
                 if (!gradeData[p.grade]) gradeData[p.grade] = { invest: 0, returnAmt: 0 };
                 gradeData[p.grade].invest += p.invest;
                 if (p.status === 'hit') gradeData[p.grade].returnAmt += p.returnAmt;
             });
 
-            // 競輪場ランキング作成
             const trackList = Object.keys(trackData).map(name => {
                 const d = trackData[name];
                 const rate = d.invest ? Math.round((d.returnAmt / d.invest) * 100) : 0;
                 const profit = d.returnAmt - d.invest;
                 return { name, rate, profit, count: d.count };
             });
-            // 利益順にソート
             trackList.sort((a, b) => b.profit - a.profit);
 
             const trackContainer = document.getElementById('track-ranking');
@@ -507,7 +506,6 @@
                 `).join('');
             }
 
-            // グレード別リスト作成
             const gradeContainer = document.getElementById('grade-ranking');
             const grades = ['GP', 'GI', 'GII', 'GIII', 'FI', 'FII'];
             let gradeHtml = '';
