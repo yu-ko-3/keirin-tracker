@@ -4,35 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>KEIRIN TRACKER</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Web App Manifest & iOS Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="競輪メモ">
-    <link rel="apple-touch-icon" href="https://placeholder.co/192">
     <style>
         body {
             background-color: #0b0c10;
             color: #c5c6c7;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
         .text-neon { color: #66fcf1; }
         .bg-neon { background-color: #66fcf1; }
         .text-accent { color: #c5e1a5; }
         .bg-accent { background-color: #c5e1a5; }
-        .border-neon { border-color: #66fcf1; }
-        /* スムーズな画面切り替え */
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+        .chip-active { background-color: #c5e1a5 !important; color: #000 !important; font-weight: bold; }
     </style>
 </head>
 <body class="pb-24 select-none">
 
-    <!-- HEADER -->
     <header class="p-4 pt-8 border-b border-gray-800 bg-[#1f2833]/30 backdrop-blur sticky top-0 z-40 flex justify-between items-center">
         <div>
             <p class="text-xs tracking-widest text-gray-500 font-bold uppercase">Keirin Tracker</p>
@@ -43,12 +37,9 @@
         </button>
     </header>
 
-    <!-- MAIN CONTENT -->
     <main class="p-4 max-w-md mx-auto">
         
-        <!-- TAB 1: DASHBOARD -->
         <div id="tab-home" class="tab-content active space-y-4">
-            <!-- STATS GRID -->
             <div class="grid grid-cols-2 gap-3">
                 <div class="bg-[#1f2833]/50 p-4 rounded-2xl border border-gray-800">
                     <p class="text-xs text-gray-400 font-medium">的中率</p>
@@ -70,17 +61,12 @@
                 </div>
             </div>
 
-            <!-- RECENT LIST -->
             <div class="space-y-2">
                 <h3 class="text-sm font-bold text-gray-400 px-1">最近の予想</h3>
-                <div id="recent-predictions-list" class="space-y-2">
-                    <!-- 案内表示 -->
-                    <p class="text-center text-sm text-gray-600 py-8">まだ予想がありません<br><span class="text-accent cursor-pointer" onclick="openModal()">+ 予想追加</span>から記録しよう</p>
-                </div>
+                <div id="recent-predictions-list" class="space-y-2"></div>
             </div>
         </div>
 
-        <!-- TAB 2: RECORDS -->
         <div id="tab-records" class="tab-content space-y-3">
             <div class="flex justify-between items-center px-1">
                 <h3 class="text-sm font-bold text-gray-400">すべての履歴</h3>
@@ -91,135 +77,96 @@
             <div id="all-records-list" class="space-y-2"></div>
         </div>
 
-        <!-- TAB 3: ANALYSIS -->
         <div id="tab-analysis" class="tab-content space-y-4">
-            <!-- 競率場別分析 -->
             <div class="bg-[#1f2833]/30 p-4 rounded-2xl border border-gray-800">
                 <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
                     <i data-lucide="map-pin" class="w-4 h-4 text-accent"></i>競輪場別 相性トップ3
                 </h3>
-                <div id="track-ranking" class="space-y-2 text-sm text-gray-400">
-                    <p class="text-gray-600 text-center py-2">データが不足しています</p>
-                </div>
+                <div id="track-ranking" class="space-y-2 text-sm text-gray-400"></div>
             </div>
-            <!-- グレード別分析 -->
             <div class="bg-[#1f2833]/30 p-4 rounded-2xl border border-gray-800">
                 <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
                     <i data-lucide="award" class="w-4 h-4 text-accent"></i>グレード別 回収率
                 </h3>
-                <div id="grade-ranking" class="space-y-2 text-sm text-gray-400">
-                    <p class="text-gray-600 text-center py-2">データが不足しています</p>
-                </div>
+                <div id="grade-ranking" class="space-y-2 text-sm text-gray-400"></div>
             </div>
         </div>
 
     </main>
 
-    <!-- MODAL: ADD PREDICTION -->
     <div id="prediction-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
-        <div class="bg-[#151a22] w-full max-w-md rounded-t-3xl sm:rounded-3xl border-t sm:border border-gray-800 max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
-            <div class="flex justify-between items-center border-b border-gray-800 pb-3">
-                <h2 class="text-lg font-black text-white">レース予想の記録</h2>
+        <div class="bg-[#151a22] w-full max-w-md rounded-t-3xl sm:rounded-3xl border-t sm:border border-gray-800 max-h-[92vh] overflow-y-auto p-5 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+                <h2 class="text-base font-black text-white">レース予想の記録</h2>
                 <button onclick="closeModal()" class="text-gray-400 p-1"><i data-lucide="x" class="w-6 h-6"></i></button>
             </div>
             
-            <form id="prediction-form" onsubmit="savePrediction(event)" class="space-y-4 text-sm">
-                <!-- 日付・競輪場・グレード -->
+            <form id="prediction-form" onsubmit="savePrediction(event)" class="space-y-4 text-xs">
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs text-gray-400 font-bold mb-1">日付</label>
-                        <input type="date" id="form-date" required class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-accent">
+                        <label class="block text-gray-400 font-bold mb-1">日付</label>
+                        <input type="date" id="form-date" required class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2 text-white focus:outline-none focus:border-accent">
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-400 font-bold mb-1">競輪場</label>
-                        <select id="form-track" required class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-accent">
-                            <!-- 北日本 -->
-                            <optgroup label="北日本">
-                                <option value="函館">函館</option><option value="青森">青森</option><option value="いわき平">いわき平</option>
-                            </optgroup>
-                            <!-- 関東 -->
-                            <optgroup label="関東">
-                                <option value="弥彦">弥彦</option><option value="前橋">前橋</option><option value="取手">取手</option><option value="宇都宮">宇都宮</option><option value="大宮">大宮</option><option value="西武園">西武園</option><option value="京王閣">京王閣</option><option value="立川">立川</option>
-                            </optgroup>
-                            <!-- 南関東 -->
-                            <optgroup label="南関東">
-                                <option value="松戸">松戸</option><option value="千葉">千葉JP</option><option value="川崎">川崎</option><option value="平塚">平塚</option><option value="小田原">小田原</option><option value="伊東">伊東</option><option value="静岡">静岡</option>
-                            </optgroup>
-                            <!-- 中部 -->
-                            <optgroup label="中部">
-                                <option value="名古屋">名古屋</option><option value="岐阜">岐阜</option><option value="大垣">大垣</option><option value="豊橋">豊橋</option><option value="富山">富山</option><option value="松阪">松阪</option><option value="四日市">四日市</option>
-                            </optgroup>
-                            <!-- 近畿 -->
-                            <optgroup label="近畿">
-                                <option value="福井">福井</option><option value="京都向日町">京都向日町</option><option value="奈良">奈良</option><option value="和歌山">和歌山</option><option value="岸和田">岸和田</option>
-                            </optgroup>
-                            <!-- 中国 -->
-                            <optgroup label="中国">
-                                <option value="玉野">玉野</option><option value="広島">広島</option><option value="防府">防府</option>
-                            </optgroup>
-                            <!-- 四国 -->
-                            <optgroup label="四国">
-                                <option value="高松">高松</option><option value="小松島">小松島</option><option value="高知">高知</option><option value="松山">松山</option>
-                            </optgroup>
-                            <!-- 九州 -->
-                            <optgroup label="九州">
-                                <option value="小倉">小倉</option><option value="久留米">久留米</option><option value="武雄">武雄</option><option value="佐世保">佐世保</option><option value="別府">別府</option><option value="熊本">熊本</option>
-                            </optgroup>
-                        </select>
+                        <label class="block text-gray-400 font-bold mb-1">競輪場</label>
+                        <input type="text" id="form-track" list="track-suggestions" placeholder="松阪" required class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2 text-white focus:outline-none focus:border-accent">
+                        <datalist id="track-suggestions">
+                            <option value="函館"><option value="青森"><option value="いわき平"><option value="弥彦"><option value="前橋"><option value="取手"><option value="宇都宮"><option value="大宮"><option value="西武園"><option value="京王閣"><option value="立川"><option value="松戸"><option value="千葉JP"><option value="川崎"><option value="平塚"><option value="小田原"><option value="伊東"><option value="静岡"><option value="名古屋"><option value="岐阜"><option value="大垣"><option value="豊橋"><option value="富山"><option value="松阪"><option value="四日市"><option value="福井"><option value="京都向日町"><option value="奈良"><option value="和歌山"><option value="岸和田"><option value="玉野"><option value="広島"><option value="防府"><option value="高松"><option value="小松島"><option value="高知"><option value="松山"><option value="小倉"><option value="久留米"><option value="武雄"><option value="佐世保"><option value="別府"><option value="熊本">
+                        </datalist>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-xs text-gray-400 font-bold mb-1">レース番号</label>
-                        <select id="form-race-num" class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-accent">
-                            <option value="1">1 R</option><option value="2">2 R</option><option value="3">3 R</option><option value="4">4 R</option><option value="5">5 R</option><option value="6">6 R</option><option value="7">7 R</option><option value="8">8 R</option><option value="9">9 R</option><option value="10">10 R</option><option value="11">11 R</option><option value="12">12 R</option>
-                        </select>
+                        <label class="block text-gray-400 font-bold mb-1">レース番号</label>
+                        <input type="number" id="form-race-num" min="1" max="12" placeholder="9" required class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2 text-white focus:outline-none focus:border-accent">
                     </div>
                     <div>
-                        <label class="block text-xs text-gray-400 font-bold mb-1">グレード</label>
-                        <select id="form-grade" class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-accent">
-                            <option value="FII">FII</option><option value="FI">FI</option><option value="GIII">GIII</option><option value="GII">GII</option><option value="GI">GI</option><option value="GP">GP</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- 投資・回収・結果 -->
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs text-gray-400 font-bold mb-1">投資金額 (円)</label>
-                        <input type="number" id="form-invest" min="0" step="100" required placeholder="1000" class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-accent">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-gray-400 font-bold mb-1">レース結果</label>
-                        <select id="form-status" onchange="toggleReturnInput()" class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2.5 text-white focus:outline-none focus:border-accent">
-                            <option value="pending">結果待ち</option>
-                            <option value="hit">的中</option>
-                            <option value="miss">不的中</option>
+                        <label class="block text-gray-400 font-bold mb-1">グレード</label>
+                        <select id="form-grade" class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2 text-white focus:outline-none focus:border-accent">
+                            <option value="FI">FI</option><option value="FII">FII</option><option value="GIII">GIII</option><option value="GII">GII</option><option value="GI">GI</option><option value="GP">GP</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- 回収金額（デフォルト非表示、的中時のみ） -->
-                <div id="return-input-container" class="hidden">
-                    <label class="block text-xs text-accent font-bold mb-1">回収金額 (円)</label>
-                    <input type="number" id="form-return" min="0" step="10" placeholder="2500" class="w-full bg-[#1f2833] border border-accent rounded-xl p-2.5 text-white focus:outline-none">
-                </div>
-
-                <!-- メモ欄（出走表・並び予想用） -->
                 <div>
-                    <label class="block text-xs text-gray-400 font-bold mb-1">出走表・並び・展開メモ</label>
-                    <textarea id="form-memo" rows="6" class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2.5 text-white font-mono text-xs focus:outline-none focus:border-accent resize-none"></textarea>
+                    <label class="block text-gray-400 font-bold mb-1">出走選手・並び予想</label>
+                    <textarea id="form-memo" rows="4" placeholder="コピペや並び予想（← 5 1 ・ 2 4 6）など自由入力" class="w-full bg-[#1f2833] border border-gray-700 rounded-xl p-2 text-white font-mono focus:outline-none focus:border-accent resize-none"></textarea>
                 </div>
 
-                <button type="submit" class="w-full bg-accent text-black font-bold py-3 rounded-xl active:scale-98 transition mt-2 shadow-lg shadow-accent/10">
+                <div class="border-t border-gray-800 pt-3 space-y-2">
+                    <div class="flex justify-between items-center">
+                        <label class="text-gray-300 font-black">買い目の追加</label>
+                        <button type="button" onclick="addBetRow()" class="bg-accent text-black font-bold px-2.5 py-1 rounded-lg text-xs flex items-center gap-0.5 shadow">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>追加
+                        </button>
+                    </div>
+                    
+                    <div id="bet-rows-container" class="space-y-2 max-h-[220px] overflow-y-auto pr-1"></div>
+                </div>
+
+                <div>
+                    <label class="block text-gray-400 font-bold mb-1">予想根拠</label>
+                    <div class="flex flex-wrap gap-1.5" id="reason-chips">
+                        <span onclick="toggleChip(this)" class="bg-[#1f2833] text-gray-400 px-2.5 py-1 rounded-full cursor-pointer border border-gray-700">🔗 ライン読み</span>
+                        <span onclick="toggleChip(this)" class="bg-[#1f2833] text-gray-400 px-2.5 py-1 rounded-full cursor-pointer border border-gray-700">💨 脚質</span>
+                        <span onclick="toggleChip(this)" class="bg-[#1f2833] text-gray-400 px-2.5 py-1 rounded-full cursor-pointer border border-gray-700">🏅 級班</span>
+                        <span onclick="toggleChip(this)" class="bg-[#1f2833] text-gray-400 px-2.5 py-1 rounded-full cursor-pointer border border-gray-700">📈 近況成績</span>
+                        <span onclick="toggleChip(this)" class="bg-[#1f2833] text-gray-400 px-2.5 py-1 rounded-full cursor-pointer border border-gray-700">🏠 地元選手</span>
+                        <span onclick="toggleChip(this)" class="bg-[#1f2833] text-gray-400 px-2.5 py-1 rounded-full cursor-pointer border border-gray-700">☀️ 天候・風</span>
+                        <span onclick="toggleChip(this)" class="bg-[#1f2833] text-gray-400 px-2.5 py-1 rounded-full cursor-pointer border border-gray-700">🎰 バンク特性</span>
+                        <span onclick="toggleChip(this)" class="bg-[#1f2833] text-gray-400 px-2.5 py-1 rounded-full cursor-pointer border border-gray-700">💰 オッズ</span>
+                        <span onclick="toggleChip(this)" class="bg-[#1f2833] text-gray-400 px-2.5 py-1 rounded-full cursor-pointer border border-gray-700">⚡ 直感</span>
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-accent text-black font-bold py-2.5 rounded-xl text-sm active:scale-98 transition shadow-lg shadow-accent/10">
                     予想を保存する
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- BOTTOM NAVIGATION -->
     <nav class="fixed bottom-0 left-0 right-0 bg-[#0f141c]/95 border-t border-gray-800 backdrop-blur pb-safe z-40">
         <div class="flex justify-around max-w-md mx-auto">
             <button onclick="switchTab('home')" id="nav-home" class="flex flex-col items-center gap-1 py-3 text-accent w-full">
@@ -234,20 +181,17 @@
         </div>
     </nav>
 
-    <!-- CORE SCRIPT -->
     <script>
         let predictions = JSON.parse(localStorage.getItem('keirin_data')) || [];
 
-        // メモ欄のデフォルトテンプレート
-        const DEFAULT_MEMO_TEMPLATE = `【出走表・印】\n1 ◎ \n2 ◯ \n3 ▲ \n4 \n\n【並び予想】\n← `;
-
         window.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
-            initDate();
+            initFormDefaults();
             renderApp();
         });
 
-        function initDate() {
+        // フォームを開いたときのデフォルト値をセット（日付のみ今日、他は前回の入力を残すために消さない）
+        function initFormDefaults() {
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('form-date').value = today;
         }
@@ -260,66 +204,109 @@
             tabs.forEach(t => {
                 const btn = document.getElementById(`nav-${t}`);
                 if (t === tabId) {
-                    btn.classList.remove('text-gray-500');
-                    btn.classList.add('text-accent');
+                    btn.classList.remove('text-gray-500'); btn.classList.add('text-accent');
                 } else {
-                    btn.classList.remove('text-accent');
-                    btn.classList.add('text-gray-500');
+                    btn.classList.remove('text-accent'); btn.classList.add('text-gray-500');
                 }
             });
-
             const titles = { home: 'ダッシュボード', records: '履歴一覧', analysis: 'データ分析' };
             document.getElementById('page-title').innerText = titles[tabId];
         }
 
         function openModal() {
             document.getElementById('prediction-modal').classList.remove('hidden');
-            initDate();
-            // メモ欄にテンプレートを自動セット
-            document.getElementById('form-memo').value = DEFAULT_MEMO_TEMPLATE;
+            
+            // 買い目コンテナが空なら最初の1行目を自動追加
+            const container = document.getElementById('bet-rows-container');
+            if(container.children.length === 0) {
+                addBetRow();
+            }
         }
 
         function closeModal() {
             document.getElementById('prediction-modal').classList.add('hidden');
-            document.getElementById('prediction-form').reset();
-            toggleReturnInput();
+            // 注意：入力項目を自動クリアしない（消さない限り残る仕様の維持）
+            // 買い目の行だけリセット
+            document.getElementById('bet-rows-container').innerHTML = '';
+            document.querySelectorAll('#reason-chips span').forEach(el => el.classList.remove('chip-active'));
+            addBetRow();
         }
 
-        function toggleReturnInput() {
-            const status = document.getElementById('form-status').value;
-            const container = document.getElementById('return-input-container');
-            const returnInput = document.getElementById('form-return');
-            if (status === 'hit') {
-                container.classList.remove('hidden');
-                returnInput.required = true;
-            } else {
-                container.classList.add('hidden');
-                returnInput.required = false;
-                returnInput.value = '';
-            }
+        // 買い目入力行を新しく追加する関数（プラス➕スタイル）
+        function addBetRow() {
+            const container = document.getElementById('bet-rows-container');
+            const rowId = Date.now() + Math.random();
+            const rowHtml = `
+                <div class="flex items-center gap-1.5 bg-black/30 p-2 rounded-xl border border-gray-850" id="row-${rowId}">
+                    <select class="row-type bg-[#1f2833] border border-gray-700 rounded-lg p-1.5 text-white text-[11px] w-20">
+                        <option value="三連単">三連単</option><option value="三連複">三連複</option>
+                        <option value="二車単">二車単</option><option value="二車複">二車複</option>
+                        <option value="ワイド">ワイド</option><option value="単勝">単勝</option><option value="複勝">複勝</option>
+                    </select>
+                    <input type="text" placeholder="2-4-5" required class="row-target w-full bg-[#1f2833] border border-gray-700 rounded-lg p-1.5 text-white font-mono placeholder-gray-600 text-xs">
+                    <input type="number" min="0" step="100" placeholder="100" required class="row-money bg-[#1f2833] border border-gray-700 rounded-lg p-1.5 text-white text-xs w-16 text-center">
+                    <button type="button" onclick="removeBetRow('row-${rowId}')" class="text-gray-500 hover:text-rose-400 p-1">
+                        <i data-lucide="trash" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', rowHtml);
+            lucide.createIcons();
         }
 
+        function removeBetRow(id) {
+            const row = document.getElementById(id);
+            if (row) row.remove();
+        }
+
+        function toggleChip(el) {
+            el.classList.toggle('chip-active');
+        }
+
+        // 保存処理
         function savePrediction(e) {
             e.preventDefault();
-            const status = document.getElementById('form-status').value;
-            let returnAmt = 0;
-            if (status === 'hit') returnAmt = parseInt(document.getElementById('form-return').value) || 0;
-            if (status === 'miss') returnAmt = 0;
 
-            const item = {
+            const rows = document.getElementById('bet-rows-container').children;
+            if (rows.length === 0) {
+                alert('買い目を1つ以上追加してください。');
+                return;
+            }
+
+            // 動的に増えた買い目データを配列で取得
+            const betList = [];
+            let totalInvest = 0;
+            for (let row of rows) {
+                const type = row.querySelector('.row-type').value;
+                const target = row.querySelector('.row-target').value;
+                const money = parseInt(row.querySelector('.row-money').value) || 0;
+                betList.push({ type, target, money, status: 'pending', returnAmt: 0 });
+                totalInvest += money;
+            }
+
+            // 選択された予想根拠
+            const reasons = [];
+            document.querySelectorAll('#reason-chips .chip-active').forEach(el => {
+                reasons.push(el.innerText);
+            });
+
+            const raceItem = {
                 id: Date.now(),
                 date: document.getElementById('form-date').value,
                 track: document.getElementById('form-track').value,
                 raceNum: document.getElementById('form-race-num').value,
                 grade: document.getElementById('form-grade').value,
-                invest: parseInt(document.getElementById('form-invest').value) || 0,
-                status: status,
-                returnAmt: returnAmt,
-                memo: document.getElementById('form-memo').value || ''
+                memo: document.getElementById('form-memo').value || '',
+                reasons: reasons,
+                bets: betList,
+                invest: totalInvest,
+                status: 'pending' // レース全体のステータス
             };
 
-            predictions.unshift(item);
+            predictions.unshift(raceItem);
             localStorage.setItem('keirin_data', JSON.stringify(predictions));
+            
+            // 買い目・根拠部分だけ閉じてクリア（競輪場や選手名は消さない）
             closeModal();
             renderApp();
         }
@@ -330,23 +317,32 @@
             renderApp();
         }
 
-        function updateStatusDirect(id, status, returnAmt = 0) {
+        // 個別の買い目の的中・外れ処理
+        function setBetResult(raceId, betIdx, status) {
             predictions = predictions.map(p => {
-                if (p.id === id) {
-                    return { ...p, status, returnAmt };
+                if (p.id === raceId) {
+                    let returnAmt = 0;
+                    if (status === 'hit') {
+                        const amt = prompt("該当の買い目の回収金額を入力してください (円):", "1000");
+                        if (amt === null) return p;
+                        returnAmt = parseInt(amt) || 0;
+                    }
+                    p.bets[betIdx].status = status;
+                    p.bets[betIdx].returnAmt = returnAmt;
+
+                    // 全買い目の状態を見て、レース全体のステータスを更新
+                    const hasPending = p.bets.some(b => b.status === 'pending');
+                    const hasHit = p.bets.some(b => b.status === 'hit');
+                    if (!hasPending) {
+                        p.status = hasHit ? 'hit' : 'miss';
+                    } else {
+                        p.status = 'pending';
+                    }
                 }
                 return p;
             });
             localStorage.setItem('keirin_data', JSON.stringify(predictions));
             renderApp();
-        }
-
-        function promptHitResult(id) {
-            const amt = prompt("回収金額を入力してください (円):", "1000");
-            if (amt !== null) {
-                const returnAmt = parseInt(amt) || 0;
-                updateStatusDirect(id, 'hit', returnAmt);
-            }
         }
 
         function clearAllData() {
@@ -366,20 +362,36 @@
         }
 
         function calculateStats() {
-            const finished = predictions.filter(p => p.status !== 'pending');
-            const hits = finished.filter(p => p.status === 'hit');
-            
             let totalInvest = 0;
             let totalReturn = 0;
-            predictions.forEach(p => totalInvest += p.invest);
-            finished.forEach(p => totalReturn += p.returnAmt);
+            let totalRacesFinished = 0;
+            let hitRacesCount = 0;
 
-            const hitRate = finished.length ? Math.round((hits.length / finished.length) * 100) : 0;
+            predictions.forEach(p => {
+                totalInvest += p.invest;
+                let raceFinished = true;
+                let raceHit = false;
+
+                p.bets.forEach(b => {
+                    if (b.status === 'pending') raceFinished = false;
+                    if (b.status === 'hit') {
+                        totalReturn += b.returnAmt;
+                        raceHit = true;
+                    }
+                });
+
+                if (p.bets.length > 0 && raceFinished) {
+                    totalRacesFinished++;
+                    if (raceHit) hitRacesCount++;
+                }
+            });
+
+            const hitRate = totalRacesFinished ? Math.round((hitRacesCount / totalRacesFinished) * 100) : 0;
             const returnRate = totalInvest ? Math.round((totalReturn / totalInvest) * 100) : 0;
             const profit = totalReturn - totalInvest;
 
             document.getElementById('stat-hit-rate').innerText = `${hitRate}%`;
-            document.getElementById('stat-count').innerText = `${hits.length}/${finished.length} レース`;
+            document.getElementById('stat-count').innerText = `${hitRacesCount}/${totalRacesFinished} レース`;
             document.getElementById('stat-return-rate').innerText = `${returnRate}%`;
             document.getElementById('stat-total-invest').innerText = `${totalInvest.toLocaleString()}円`;
             
@@ -394,33 +406,52 @@
         }
 
         function buildCardHtml(p) {
-            let statusBadge = '';
-            let rightSection = '';
+            // 全体バッジ
+            let statusBadge = `<span class="bg-gray-800 text-gray-400 font-bold px-2 py-0.5 rounded text-[10px]">結果待ち</span>`;
+            let totalReturnAmt = 0;
+            
+            const isAllFinished = p.bets.every(b => b.status !== 'pending');
+            const isAnyHit = p.bets.some(b => b.status === 'hit');
+            p.bets.forEach(b => totalReturnAmt += b.returnAmt);
 
-            if (p.status === 'hit') {
-                statusBadge = `<span class="bg-accent/20 text-accent font-bold px-2 py-0.5 rounded text-[10px]">的中</span>`;
-                rightSection = `
-                    <div class="text-right">
-                        <p class="text-xs text-gray-500">回収</p>
-                        <p class="font-black text-accent">+${p.returnAmt.toLocaleString()}円</p>
-                    </div>`;
-            } else if (p.status === 'miss') {
-                statusBadge = `<span class="bg-rose-950 text-rose-400 font-bold px-2 py-0.5 rounded text-[10px]">不的中</span>`;
-                rightSection = `
-                    <div class="text-right">
-                        <p class="text-xs text-gray-500">回収</p>
-                        <p class="font-black text-gray-600">0円</p>
-                    </div>`;
-            } else {
-                statusBadge = `<span class="bg-gray-800 text-gray-400 font-bold px-2 py-0.5 rounded text-[10px]">結果待ち</span>`;
-                rightSection = `
-                    <div class="flex gap-1">
-                        <button onclick="promptHitResult(${p.id})" class="bg-accent text-black font-bold px-2 py-1 rounded text-xs">的中</button>
-                        <button onclick="updateStatusDirect(${p.id}, 'miss')" class="bg-gray-800 text-gray-300 font-bold px-2 py-1 rounded text-xs">外れ</button>
-                    </div>`;
+            if (p.bets.length > 0 && isAllFinished) {
+                statusBadge = isAnyHit 
+                    ? `<span class="bg-accent/20 text-accent font-bold px-2 py-0.5 rounded text-[10px]">的中</span>`
+                    : `<span class="bg-rose-950 text-rose-400 font-bold px-2 py-0.5 rounded text-[10px]">不的中</span>`;
             }
 
-            const memoSection = p.memo ? `<p class="text-xs text-gray-300 bg-black/40 p-2.5 rounded-lg border border-gray-800 mt-2 font-mono whitespace-pre-wrap break-all">${p.memo}</p>` : '';
+            // 買い目リストのHTML構築
+            const betsHtml = p.bets.map((b, idx) => {
+                let actionHtml = '';
+                if (b.status === 'pending') {
+                    actionHtml = `
+                        <div class="flex gap-1 scale-90 origin-right">
+                            <button onclick="setBetResult(${p.id}, ${idx}, 'hit')" class="bg-accent text-black font-bold px-2 py-0.5 rounded text-[10px]">的中</button>
+                            <button onclick="setBetResult(${p.id}, ${idx}, 'miss')" class="bg-gray-800 text-gray-400 px-2 py-0.5 rounded text-[10px]">外れ</button>
+                        </div>`;
+                } else if (b.status === 'hit') {
+                    actionHtml = `<span class="text-accent font-bold text-[11px]">+${b.returnAmt.toLocaleString()}円</span>`;
+                } else {
+                    actionHtml = `<span class="text-gray-600 text-[11px]">0円</span>`;
+                }
+
+                return `
+                    <div class="flex justify-between items-center bg-black/20 px-2 py-1.5 rounded border border-gray-900/50 text-[11px]">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-gray-400 font-bold bg-gray-900 px-1 py-0.2 rounded text-[10px]">${b.type}</span>
+                            <span class="font-mono text-white">${b.target}</span>
+                            <span class="text-gray-500">(${b.money}円)</span>
+                        </div>
+                        ${actionHtml}
+                    </div>
+                `;
+            }).join('');
+
+            const reasonHtml = p.reasons && p.reasons.length > 0 
+                ? `<div class="flex flex-wrap gap-1 mt-2">${p.reasons.map(r => `<span class="text-[9px] text-gray-400 bg-gray-900 px-2 py-0.5 rounded-full">${r}</span>`).join('')}</div>`
+                : '';
+
+            const memoSection = p.memo ? `<p class="text-xs text-gray-300 bg-black/40 p-2 rounded-lg border border-gray-800 mt-2 font-mono whitespace-pre-wrap break-all">${p.memo}</p>` : '';
 
             return `
                 <div class="bg-[#1f2833]/40 p-4 rounded-xl border border-gray-800 flex flex-col justify-between">
@@ -432,15 +463,23 @@
                                 <span class="text-[10px] text-gray-500 bg-gray-900 px-1.5 py-0.5 rounded border border-gray-800">${p.grade}</span>
                                 ${statusBadge}
                             </div>
-                            <p class="text-[11px] text-gray-500">${p.date}</p>
+                            <p class="text-[10px] text-gray-500">${p.date}</p>
                         </div>
-                        ${rightSection}
+                        <div class="text-right">
+                            <p class="text-[10px] text-gray-500">合計回収</p>
+                            <p class="font-black text-sm ${totalReturnAmt > 0 ? 'text-accent' : 'text-gray-500'}">${totalReturnAmt.toLocaleString()}円</p>
+                        </div>
                     </div>
-                    <div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-800/50">
-                        <p class="text-xs text-gray-400">投資: <span class="font-bold text-gray-200">${p.invest.toLocaleString()}円</span></p>
+                    
+                    <div class="mt-2.5 space-y-1">${betsHtml}</div>
+                    
+                    ${reasonHtml}
+                    ${memoSection}
+
+                    <div class="flex justify-between items-center mt-2.5 pt-2 border-t border-gray-800/50">
+                        <p class="text-[11px] text-gray-400">総投資: <span class="font-bold text-gray-200">${p.invest.toLocaleString()}円</span></p>
                         <button onclick="deleteItem(${p.id})" class="text-gray-600 hover:text-rose-400 p-1"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
                     </div>
-                    ${memoSection}
                 </div>
             `;
         }
@@ -448,7 +487,7 @@
         function renderRecentList() {
             const container = document.getElementById('recent-predictions-list');
             if (predictions.length === 0) {
-                container.innerHTML = `<p class="text-center text-sm text-gray-600 py-8">まだ予想がありません<br><span class="text-accent cursor-pointer" onclick="openModal()">+ 予想追加</span>から記録しよう</p>`;
+                container.innerHTML = `<p class="text-center text-xs text-gray-600 py-8">まだ予想がありません<br><span class="text-accent cursor-pointer" onclick="openModal()">+ 予想追加</span>から記録しよう</p>`;
                 return;
             }
             const recent = predictions.slice(0, 3);
@@ -458,7 +497,7 @@
         function renderAllRecords() {
             const container = document.getElementById('all-records-list');
             if (predictions.length === 0) {
-                container.innerHTML = `<p class="text-center text-sm text-gray-600 py-8">履歴がありません</p>`;
+                container.innerHTML = `<p class="text-center text-xs text-gray-600 py-8">履歴がありません</p>`;
                 return;
             }
             container.innerHTML = predictions.map(p => buildCardHtml(p)).join('');
@@ -469,14 +508,23 @@
             const gradeData = {};
 
             predictions.forEach(p => {
+                let trackReturn = 0;
+                let gradeReturn = 0;
+                p.bets.forEach(b => {
+                    if (b.status === 'hit') {
+                        trackReturn += b.returnAmt;
+                        gradeReturn += b.returnAmt;
+                    }
+                });
+
                 if (!trackData[p.track]) trackData[p.track] = { invest: 0, returnAmt: 0, count: 0 };
                 trackData[p.track].invest += p.invest;
+                trackData[p.track].returnAmt += trackReturn;
                 trackData[p.track].count++;
-                if (p.status === 'hit') trackData[p.track].returnAmt += p.returnAmt;
 
                 if (!gradeData[p.grade]) gradeData[p.grade] = { invest: 0, returnAmt: 0 };
                 gradeData[p.grade].invest += p.invest;
-                if (p.status === 'hit') gradeData[p.grade].returnAmt += p.returnAmt;
+                gradeData[p.grade].returnAmt += gradeReturn;
             });
 
             const trackList = Object.keys(trackData).map(name => {
@@ -492,15 +540,15 @@
                 trackContainer.innerHTML = `<p class="text-gray-600 text-center py-2">データが不足しています</p>`;
             } else {
                 trackContainer.innerHTML = trackList.slice(0, 3).map((t, idx) => `
-                    <div class="flex justify-between items-center bg-black/20 p-2.5 rounded-xl border border-gray-900">
+                    <div class="flex justify-between items-center bg-black/20 p-2 rounded-xl border border-gray-900">
                         <div class="flex items-center gap-2">
-                            <span class="font-black text-accent text-sm w-4">${idx + 1}</span>
+                            <span class="font-black text-accent text-xs w-4">${idx + 1}</span>
                             <span class="font-bold text-white">${t.name}</span>
                             <span class="text-[10px] text-gray-500">${t.count}戦</span>
                         </div>
                         <div class="text-right">
-                            <span class="font-bold text-sm ${t.profit >= 0 ? 'text-accent' : 'text-rose-400'}">${t.profit >= 0 ? '+' : ''}${t.profit.toLocaleString()}円</span>
-                            <span class="text-xs text-gray-500 ml-2">(${t.rate}%)</span>
+                            <span class="font-bold text-xs ${t.profit >= 0 ? 'text-accent' : 'text-rose-400'}">${t.profit >= 0 ? '+' : ''}${t.profit.toLocaleString()}円</span>
+                            <span class="text-[10px] text-gray-500 ml-2">(${t.rate}%)</span>
                         </div>
                     </div>
                 `).join('');
@@ -518,11 +566,11 @@
                     const rate = d.invest ? Math.round((d.returnAmt / d.invest) * 100) : 0;
                     const profit = d.returnAmt - d.invest;
                     gradeHtml += `
-                        <div class="flex justify-between items-center bg-black/20 p-2.5 rounded-xl border border-gray-900">
-                            <span class="font-bold text-white bg-gray-900 px-2 py-0.5 rounded border border-gray-800 text-xs">${g}</span>
+                        <div class="flex justify-between items-center bg-black/20 p-2 rounded-xl border border-gray-900">
+                            <span class="font-bold text-white bg-gray-900 px-2 py-0.5 rounded border border-gray-800 text-[11px]">${g}</span>
                             <div class="text-right">
                                 <span class="font-black ${rate >= 100 ? 'text-accent' : 'text-gray-400'}">${rate}%</span>
-                                <span class="text-xs text-gray-500 ml-2">収支: ${profit >= 0 ? '+' : ''}${profit.toLocaleString()}円</span>
+                                <span class="text-[10px] text-gray-500 ml-2">収支: ${profit >= 0 ? '+' : ''}${profit.toLocaleString()}円</span>
                             </div>
                         </div>`;
                 }
