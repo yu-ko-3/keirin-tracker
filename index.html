@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="競輪メモ">
+<title>競輪トラッカー</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:#0D0D12;color:#fff;font-family:'Noto Sans JP',sans-serif;max-width:430px;margin:0 auto;padding-bottom:80px;min-height:100vh;}
+input,select,textarea,button{font-family:'Noto Sans JP',sans-serif;}
+::-webkit-scrollbar{display:none;}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:flex-end;justify-content:center;}
+.sheet{background:#111116;border-radius:24px 24px 0 0;padding:24px 20px 40px;width:100%;max-width:430px;max-height:90vh;overflow-y:auto;box-shadow:0 -20px 60px #000;}
+.input{background:#1A1A1F;border:1px solid #2A2A30;border-radius:10px;color:#fff;padding:12px 14px;font-size:15px;width:100%;outline:none;}
+.label{color:#666;font-size:11px;margin-bottom:6px;display:block;letter-spacing:0.08em;}
+.card{background:#1A1A1F;border-radius:14px;padding:14px 16px;margin-bottom:8px;cursor:pointer;}
+.stat{background:#1A1A1F;border-radius:16px;padding:16px 18px;flex:1;min-width:0;}
+.bar-bg{background:#252530;border-radius:4px;height:6px;overflow:hidden;}
+.bar-fill{height:100%;background:#C8F135;border-radius:4px;}
+.tag{background:#252530;border-radius:6px;padding:2px 7px;font-size:10px;color:#888;}
+.chip{border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;border:1px solid #2A2A30;background:#1A1A1F;color:#666;}
+.chip.active{background:#C8F13522;color:#C8F135;border-color:#C8F135;}
+.btn-primary{background:#C8F135;color:#0D0D12;border:none;border-radius:12px;padding:16px;font-size:15px;font-weight:900;width:100%;cursor:pointer;}
+.btn-result{background:#252530;border:none;border-radius:8px;padding:5px 12px;color:#C8F135;font-size:11px;font-weight:700;cursor:pointer;}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#0D0D12;border-top:1px solid #1A1A1F;display:flex;padding:10px 0 20px;}
+.nav button{flex:1;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const TRACKS=["函館","青森","いわき平","弥彦","前橋","取手","宇都宮","大宮","西武園","京王閣","立川","松戸","千葉","川崎","平塚","小田原","伊東","静岡","名古屋","岐阜","大垣","豊橋","富山","松山","高松","小松島","奈良","和歌山","玉野","広島","防府","小倉","久留米","武雄","佐世保","別府","熊本"];
+const BET_TYPES=["三連単","三連複","二車単","二車複","ワイド","単勝","複勝"];
+const GRADES=["G1","G2","G3","FI"];
+const FACTORS=[
+  {id:"line",label:"ライン読み",icon:"🔗"},
+  {id:"style",label:"脚質",icon:"💨"},
+  {id:"grade",label:"級班",icon:"🏅"},
+  {id:"form",label:"近況成績",icon:"📈"},
+  {id:"local",label:"地元選手",icon:"🏠"},
+  {id:"weather",label:"天候・風",icon:"🌤"},
+  {id:"bank",label:"バンク特性",icon:"🏟"},
+  {id:"odds",label:"オッズ",icon:"💰"},
+  {id:"instinct",label:"直感",icon:"⚡"},
+];
+
+function fmtDate(d){const dt=new Date(d);return `${dt.getMonth()+1}/${dt.getDate()}`;}
+function fmtNum(n){return Number(n).toLocaleString();}
+
+function loadRecords(){try{return JSON.parse(localStorage.getItem("keirin_v2")||"[]");}catch{return[];}}
+function saveRecords(r){localStorage.setItem("keirin_v2",JSON.stringify(r));}
+
+let state={
+  tab:"home",
+  records:loadRecords(),
+  showForm:false,
+  showResult:null,
+  showDetail:null,
+  filterTrack:"ALL",
+  form:{date:today(),track:"立川",raceNo:"",grade:"FI",betType:"三連単",prediction:"",players:"",stake:"0",factors:[],memo:""},
+};
+
+function today(){return new Date().toISOString().split("T")[0];}
+
+function setState(patch){
+  state={...state,...patch};
+  render();
+}
+
+function getStats(){
+  const r=state.records;
+  const paid=r.filter(x=>Number(x.stake)>0);
+  const decided=r.filter(x=>x.hit!==null);
+  const hits=decided.filter(x=>x.hit===true).length;
+  const totalStake=paid.reduce((s,x)=>s+(Number(x.stake)||0),0);
+  const totalPayout=paid.filter(x=>x.hit===true).reduce((s,x)=>s+(Number(x.payout)||0),0);
+  const hitRate=decided.length>0?Math.round(hits/decided.length*100):0;
+  const recovery=totalStake>0?Math.round(totalPayout/totalStake*100):0;
+  return{total:r.length,hits,decided:decided.length,hitRate,totalStake,totalPayout,recovery,profit:totalPayout-totalStake};
+}
+
+function getFactorStats(){
+  const st={};
+  FACTORS.forEach(f=>{st[f.id]={total:0,hits:0};});
+  state.records.filter(r=>r.hit!==null).forEach(r=>{
+    (r.factors||[]).forEach(fid=>{if(st[fid]){st[fid].total++;if(r.hit)st[fid].hits++;}});
+  });
+  return FACTORS.map(f=>({...f,...st[f.id],rate:st[f.id].total>0?Math.round(st[f.id].hits/st[f.id].total*100):null})).filter(f=>f.total>0).sort((a,b)=>(b.rate||0)-(a.rate||0));
+}
+
+function saveRecord(){
+  const f=state.form;
+  if(!f.raceNo||!f.prediction)return;
+  const newRec={...f,id:Date.now(),hit:null,payout:null};
+  const records=[newRec,...state.records];
+  saveRecords(records);
+  setState({records,showForm:false,form:{date:today(),track:"立川",raceNo:"",grade:"FI",betType:"三連単",prediction:"",players:"",stake:"0",factors:[],memo:""}});
+}
+
+function setResult(id,hit,payout){
+  const records=state.records.map(r=>r.id===id?{...r,hit,payout:Number(payout)||0}:r);
+  saveRecords(records);
+  setState({records,showResult:null});
+}
+
+function deleteRecord(id){
+  const records=state.records.filter(r=>r.id!==id);
+  saveRecords(records);
+  setState({records,showDetail:null});
+}
+
+function toggleFactor(fid){
+  const f=state.form;
+  const factors=f.factors.includes(fid)?f.factors.filter(x=>x!==fid):[...f.factors,fid];
+  setState({form:{...f,factors}});
+}
+
+function render(){
+  document.getElementById("app").innerHTML=buildApp();
+  bindEvents();
+}
+
+function buildApp(){
+  const s=getStats();
+  const tab=state.tab;
+  return `
+  <div style="padding:20px 20px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #1A1A1F;">
+    <div>
+      <div style="color:#C8F135;font-size:10px;letter-spacing:0.2em;margin-bottom:2px;">KEIRIN TRACKER</div>
+      <div style="font-size:20px;font-weight:900;">${tab==="home"?"ダッシュボード":tab==="records"?"予想記録":"分析"}</div>
+    </div>
+    ${(tab==="home"||tab==="records")?`<button id="btn-add" style="background:#C8F135;color:#0D0D12;border:none;border-radius:24px;padding:10px 18px;font-size:13px;font-weight:900;cursor:pointer;">＋ 予想追加</button>`:""}
+  </div>
+  <div style="padding:14px;">
+    ${tab==="home"?buildHome(s):tab==="records"?buildRecords():buildAnalysis()}
+  </div>
+  <nav class="nav">
+    ${[{id:"home",icon:"⚡",label:"ホーム"},{id:"records",icon:"📋",label:"記録"},{id:"analysis",icon:"📊",label:"分析"}].map(n=>`
+      <button class="nav-btn" data-tab="${n.id}" style="opacity:${tab===n.id?1:0.35};">
+        <span style="font-size:22px;">${n.icon}</span>
+        <span style="font-size:10px;color:${tab===n.id?"#C8F135":"#fff"};font-weight:${tab===n.id?700:400};">${n.label}</span>
+      </button>`).join("")}
+  </nav>
+  ${state.showForm?buildFormModal():""}
+  ${state.showResult?buildResultModal():""}
+  ${state.showDetail?buildDetailModal():""}
+  `;
+}
+
+function buildHome(s){
+  const recent=state.records.slice(0,5);
+  return `
+  <div style="display:flex;gap:8px;margin-bottom:8px;">
+    <div class="stat"><div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:6px;">的中率</div><div style="color:#C8F135;font-size:22px;font-weight:800;font-family:'Bebas Neue',sans-serif;">${s.hitRate}%</div><div style="color:#444;font-size:10px;margin-top:4px;">${s.hits}/${s.decided}レース</div></div>
+    <div class="stat"><div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:6px;">回収率</div><div style="color:${s.recovery>=100?"#C8F135":"#FF5A5A"};font-size:22px;font-weight:800;font-family:'Bebas Neue',sans-serif;">${s.recovery}%</div><div style="color:#444;font-size:10px;margin-top:4px;">投資対回収</div></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:16px;">
+    <div class="stat"><div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:6px;">累計損益</div><div style="color:${s.profit>=0?"#C8F135":"#FF5A5A"};font-size:22px;font-weight:800;font-family:'Bebas Neue',sans-serif;">${s.profit>=0?"+":""}${fmtNum(s.profit)}円</div></div>
+    <div class="stat"><div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:6px;">総投資額</div><div style="color:#888;font-size:22px;font-weight:800;font-family:'Bebas Neue',sans-serif;">${fmtNum(s.totalStake)}円</div></div>
+  </div>
+  <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">最近の予想</div>
+  ${recent.length===0?`<div style="text-align:center;color:#333;padding:50px 0;font-size:14px;">まだ予想がありません<br/><span style="color:#C8F135;">＋ 予想追加</span>から記録しよう</div>`:recent.map(r=>buildCard(r)).join("")}
+  `;
+}
+
+function buildRecords(){
+  const usedTracks=[...new Set(state.records.map(r=>r.track))];
+  const filtered=state.filterTrack==="ALL"?state.records:state.records.filter(r=>r.track===state.filterTrack);
+  return `
+  <div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px;">
+    ${["ALL",...usedTracks].map(t=>`<button class="filter-btn" data-track="${t}" style="background:${state.filterTrack===t?"#C8F135":"#1A1A1F"};color:${state.filterTrack===t?"#0D0D12":"#666"};border:none;border-radius:20px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">${t}</button>`).join("")}
+  </div>
+  ${filtered.length===0?`<div style="text-align:center;color:#333;padding:50px 0;">記録なし</div>`:filtered.map(r=>buildCard(r)).join("")}
+  `;
+}
+
+function buildCard(r){
+  const hitColor=r.hit===true?"#C8F135":r.hit===false?"#FF5A5A":"#333";
+  const hitLabel=r.hit===true?"的中":r.hit===false?"外れ":"未入力";
+  const isZero=Number(r.stake)===0;
+  return `
+  <div class="card" data-detail="${r.id}" style="border-left:3px solid ${hitColor};">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <span style="color:#666;font-size:11px;">${fmtDate(r.date)}</span>
+        <span style="font-size:13px;font-weight:700;">${r.track} ${r.raceNo}R</span>
+        <span class="tag">${r.grade||"FI"}</span>
+        <span class="tag">${r.betType}</span>
+        ${isZero?`<span class="tag">見送り</span>`:""}
+      </div>
+      <span style="color:${hitColor};font-size:10px;font-weight:700;background:${hitColor}22;padding:3px 9px;border-radius:20px;white-space:nowrap;">${hitLabel}</span>
+    </div>
+    <div style="font-size:20px;font-weight:900;font-family:'Bebas Neue',sans-serif;letter-spacing:0.08em;margin-bottom:4px;">${r.prediction}</div>
+    ${(r.factors&&r.factors.length>0)?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;">${r.factors.map(fid=>{const f=FACTORS.find(x=>x.id===fid);return f?`<span style="font-size:11px;color:#666;">${f.icon}</span>`:""}).join("")}</div>`:""}
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="display:flex;gap:10px;font-size:11px;">
+        ${!isZero?`<span style="color:#555;">賭:${fmtNum(r.stake)}円</span>`:""}
+        ${r.hit===true&&r.payout>0?`<span style="color:#C8F135;">払:${fmtNum(r.payout)}円</span>`:""}
+      </div>
+      ${r.hit===null?`<button class="btn-result" data-result="${r.id}">結果入力</button>`:""}
+    </div>
+  </div>`;
+}
+
+function buildAnalysis(){
+  const fs=getFactorStats();
+  const trackStats={};
+  state.records.forEach(r=>{
+    if(!trackStats[r.track])trackStats[r.track]={total:0,hits:0,stake:0,payout:0};
+    trackStats[r.track].total++;
+    if(r.hit===true){trackStats[r.track].hits++;trackStats[r.track].payout+=Number(r.payout)||0;}
+    trackStats[r.track].stake+=Number(r.stake)||0;
+  });
+  const trackArr=Object.entries(trackStats).sort((a,b)=>b[1].total-a[1].total);
+  const gradeStats={};
+  state.records.filter(r=>r.hit!==null).forEach(r=>{
+    const g=r.grade||"FI";
+    if(!gradeStats[g])gradeStats[g]={total:0,hits:0};
+    gradeStats[g].total++;
+    if(r.hit)gradeStats[g].hits++;
+  });
+  const gradeArr=["G1","G2","G3","FI"].filter(g=>gradeStats[g]).map(g=>({grade:g,...gradeStats[g],rate:Math.round(gradeStats[g].hits/gradeStats[g].total*100)}));
+
+  if(state.records.length===0)return`<div style="text-align:center;color:#333;padding:60px 0;font-size:14px;">データが溜まると分析が表示されます</div>`;
+
+  return `
+  ${fs.length>0?`
+    <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">予想根拠別 的中率</div>
+    ${fs.map(f=>`
+    <div style="background:#1A1A1F;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+      <div style="width:80px;font-size:12px;">${f.icon} ${f.label}</div>
+      <div style="flex:1;"><div class="bar-bg"><div class="bar-fill" style="width:${f.rate}%;background:${f.rate>=50?"#C8F135":f.rate>=30?"#88AA22":"#555"};"></div></div></div>
+      <div style="color:#C8F135;font-size:13px;font-weight:700;width:34px;text-align:right;">${f.rate}%</div>
+      <div style="color:#444;font-size:10px;width:30px;text-align:right;">${f.hits}/${f.total}</div>
+    </div>`).join("")}
+    <div style="margin-bottom:16px;"></div>
+  `:""}
+  ${gradeArr.length>0?`
+    <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">グレード別 的中率</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      ${gradeArr.map(g=>`<div style="flex:1;background:#1A1A1F;border-radius:12px;padding:12px;text-align:center;"><div style="color:#555;font-size:10px;margin-bottom:6px;">${g.grade}</div><div style="color:#C8F135;font-size:20px;font-weight:800;font-family:'Bebas Neue',sans-serif;">${g.rate}%</div><div style="color:#444;font-size:10px;">${g.hits}/${g.total}</div></div>`).join("")}
+    </div>
+  `:""}
+  <div style="color:#555;font-size:10px;letter-spacing:0.1em;margin-bottom:10px;">競輪場別 的中率</div>
+  ${trackArr.map(([track,s])=>{
+    const rate=s.total>0?Math.round(s.hits/s.total*100):0;
+    const rec=s.stake>0?Math.round(s.payout/s.stake*100):0;
+    return`<div style="background:#1A1A1F;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+      <div style="width:48px;font-size:13px;font-weight:700;">${track}</div>
+      <div style="flex:1;"><div class="bar-bg"><div class="bar-fill" style="width:${rate}%;"></div></div><div style="color:#444;font-size:10px;margin-top:3px;">回収率 ${rec}%</div></div>
+      <div style="color:#C8F135;font-size:13px;font-weight:700;width:34px;text-align:right;">${rate}%</div>
+      <div style="color:#444;font-size:10px;width:30px;text-align:right;">${s.hits}/${s.total}</div>
+    </div>`;
+  }).join("")}
+  `;
+}
+
+function buildFormModal(){
+  const f=state.form;
+  return `
+  <div class="overlay" id="overlay-form">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div style="color:#C8F135;font-size:10px;letter-spacing:0.15em;margin-bottom:4px;">NEW PREDICTION</div>
+      <div style="font-size:18px;font-weight:900;margin-bottom:18px;">予想を記録</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="flex:1;"><label class="label">日付</label><input class="input" type="date" id="f-date" value="${f.date}"/></div>
+        <div style="width:70px;"><label class="label">R数</label><input class="input" type="number" id="f-raceNo" value="${f.raceNo}" placeholder="9" min="1" max="12"/></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="flex:1;"><label class="label">競輪場</label><select class="input" id="f-track" style="appearance:none;">${TRACKS.map(t=>`<option value="${t}" ${f.track===t?"selected":""}>${t}</option>`).join("")}</select></div>
+        <div style="width:80px;"><label class="label">グレード</label><select class="input" id="f-grade" style="appearance:none;">${GRADES.map(g=>`<option value="${g}" ${f.grade===g?"selected":""}>${g}</option>`).join("")}</select></div>
+      </div>
+      <div style="margin-bottom:12px;"><label class="label">出走選手（番号＋名前）</label><textarea class="input" id="f-players" rows="4" placeholder="例:&#10;1 中川誠一郎&#10;2 松浦悠士" style="resize:none;font-size:13px;">${f.players}</textarea></div>
+      <div style="margin-bottom:12px;">
+        <label class="label">式別</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${BET_TYPES.map(bt=>`<button class="chip bet-chip ${f.betType===bt?"active":""}" data-bet="${bt}">${bt}</button>`).join("")}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <div style="flex:1;"><label class="label">買い目</label><input class="input" id="f-prediction" value="${f.prediction}" placeholder="例: 1-3-5"/></div>
+        <div style="width:100px;"><label class="label">賭け金（円）</label><input class="input" type="number" id="f-stake" value="${f.stake}" placeholder="0=見送り"/></div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="label">予想根拠（複数選択可）</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${FACTORS.map(fc=>`<button class="chip factor-chip ${f.factors.includes(fc.id)?"active":""}" data-factor="${fc.id}">${fc.icon} ${fc.label}</button>`).join("")}
+        </div>
+      </div>
+      <div style="margin-bottom:20px;"><label class="label">メモ</label><textarea class="input" id="f-memo" rows="3" style="resize:none;" placeholder="ライン・展開予想など">${f.memo}</textarea></div>
+      <button class="btn-primary" id="btn-save">保存する</button>
+    </div>
+  </div>`;
+}
+
+function buildResultModal(){
+  const r=state.showResult;
+  return `
+  <div class="overlay" id="overlay-result">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div style="color:#C8F135;font-size:10px;letter-spacing:0.15em;margin-bottom:4px;">RESULT</div>
+      <div style="font-size:18px;font-weight:900;margin-bottom:4px;">結果入力</div>
+      <div style="color:#666;font-size:13px;margin-bottom:20px;">${r.track} ${r.raceNo}R / ${r.prediction}</div>
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <button id="btn-hit" style="flex:1;padding:16px;border-radius:12px;border:2px solid #2A2A30;background:#1A1A1F;color:#555;font-size:15px;font-weight:700;cursor:pointer;">🎯 的中！</button>
+        <button id="btn-miss" style="flex:1;padding:16px;border-radius:12px;border:2px solid #2A2A30;background:#1A1A1F;color:#555;font-size:15px;font-weight:700;cursor:pointer;">💔 外れ</button>
+      </div>
+      <div id="payout-area" style="display:none;margin-bottom:20px;"><label class="label">払戻金（円）</label><input class="input" type="number" id="f-payout" placeholder="5000"/></div>
+      <button class="btn-primary" id="btn-confirm" style="background:#333;cursor:default;">確定</button>
+    </div>
+  </div>`;
+}
+
+function buildDetailModal(){
+  const r=state.showDetail;
+  const hitColor=r.hit===true?"#C8F135":r.hit===false?"#FF5A5A":"#555";
+  return `
+  <div class="overlay" id="overlay-detail">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div style="color:#C8F135;font-size:10px;letter-spacing:0.15em;margin-bottom:4px;">DETAIL</div>
+      <div style="font-size:18px;font-weight:900;margin-bottom:16px;">${r.track} ${r.raceNo}R</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+        ${[{label:"日付",value:fmtDate(r.date)},{label:"グレード",value:r.grade||"FI"},{label:"式別",value:r.betType}].map(({label,value})=>`<div style="background:#1A1A1F;border-radius:10px;padding:10px 12px;"><div style="color:#555;font-size:10px;margin-bottom:4px;">${label}</div><div style="font-weight:700;font-size:14px;">${value}</div></div>`).join("")}
+      </div>
+      ${r.players?`<div style="background:#1A1A1F;border-radius:12px;padding:12px 14px;margin-bottom:12px;"><div style="color:#555;font-size:10px;margin-bottom:8px;">出走選手</div><div style="font-size:13px;line-height:1.8;white-space:pre-wrap;color:#ccc;">${r.players}</div></div>`:""}
+      <div style="background:#1A1A1F;border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+        <div style="color:#555;font-size:10px;margin-bottom:8px;">買い目</div>
+        <div style="font-size:24px;font-weight:900;font-family:'Bebas Neue',sans-serif;letter-spacing:0.08em;">${r.prediction}</div>
+        <div style="color:#888;font-size:12px;margin-top:4px;">賭け金: ${Number(r.stake)===0?"見送り（0円）":fmtNum(r.stake)+"円"}</div>
+      </div>
+      ${r.factors&&r.factors.length>0?`<div style="margin-bottom:12px;"><div style="color:#555;font-size:10px;margin-bottom:8px;">予想根拠</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${r.factors.map(fid=>{const f=FACTORS.find(x=>x.id===fid);return f?`<span style="background:#C8F13522;color:#C8F135;border:1px solid #C8F13544;border-radius:8px;padding:4px 10px;font-size:12px;">${f.icon} ${f.label}</span>`:""}).join("")}</div></div>`:""}
+      ${r.memo?`<div style="background:#1A1A1F;border-radius:12px;padding:12px 14px;margin-bottom:16px;"><div style="color:#555;font-size:10px;margin-bottom:6px;">メモ</div><div style="font-size:13px;color:#bbb;line-height:1.6;">${r.memo}</div></div>`:""}
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        ${r.hit===null
+          ?`<button id="btn-go-result" style="flex:1;background:#C8F135;color:#0D0D12;border:none;border-radius:12px;padding:14px;font-size:14px;font-weight:900;cursor:pointer;">結果を入力する</button>`
+          :`<div style="flex:1;background:${r.hit?"#C8F13522":"#FF5A5A22"};border:1px solid ${r.hit?"#C8F135":"#FF5A5A"};border-radius:12px;padding:14px;text-align:center;"><div style="color:${hitColor};font-weight:900;font-size:16px;">${r.hit?"🎯 的中！":"💔 外れ"}</div>${r.hit&&r.payout>0?`<div style="color:#C8F135;font-size:13px;margin-top:4px;">払戻: ${fmtNum(r.payout)}円</div>`:""}</div>`
+        }
+        <button id="btn-delete" style="background:#1A1A1F;border:none;border-radius:12px;padding:14px 16px;color:#FF5A5A;cursor:pointer;font-size:13px;">削除</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function bindEvents(){
+  // nav
+  document.querySelectorAll(".nav-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>setState({tab:btn.dataset.tab}));
+  });
+  // add button
+  const btnAdd=document.getElementById("btn-add");
+  if(btnAdd)btnAdd.addEventListener("click",()=>setState({showForm:true}));
+
+  // filter
+  document.querySelectorAll(".filter-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>setState({filterTrack:btn.dataset.track}));
+  });
+
+  // card click → detail
+  document.querySelectorAll(".card[data-detail]").forEach(card=>{
+    card.addEventListener("click",e=>{
+      if(e.target.closest(".btn-result"))return;
+      const id=Number(card.dataset.detail);
+      const rec=state.records.find(r=>r.id===id);
+      if(rec)setState({showDetail:rec});
+    });
+  });
+
+  // result button on card
+  document.querySelectorAll(".btn-result[data-result]").forEach(btn=>{
+    btn.addEventListener("click",e=>{
+      e.stopPropagation();
+      const id=Number(btn.dataset.result);
+      const rec=state.records.find(r=>r.id===id);
+      if(rec)setState({showResult:rec});
+    });
+  });
+
+  // form modal
+  const overlayForm=document.getElementById("overlay-form");
+  if(overlayForm){
+    overlayForm.addEventListener("click",()=>setState({showForm:false}));
+    document.querySelectorAll(".bet-chip").forEach(btn=>{
+      btn.addEventListener("click",()=>setState({form:{...state.form,betType:btn.dataset.bet}}));
+    });
+    document.querySelectorAll(".factor-chip").forEach(btn=>{
+      btn.addEventListener("click",()=>toggleFactor(btn.dataset.factor));
+    });
+    const syncForm=()=>{
+      const f=state.form;
+      state.form={...f,
+        date:document.getElementById("f-date")?.value||f.date,
+        raceNo:document.getElementById("f-raceNo")?.value||f.raceNo,
+        track:document.getElementById("f-track")?.value||f.track,
+        grade:document.getElementById("f-grade")?.value||f.grade,
+        players:document.getElementById("f-players")?.value||f.players,
+        prediction:document.getElementById("f-prediction")?.value||f.prediction,
+        stake:document.getElementById("f-stake")?.value||f.stake,
+        memo:document.getElementById("f-memo")?.value||f.memo,
+      };
+    };
+    document.getElementById("btn-save")?.addEventListener("click",()=>{syncForm();saveRecord();});
+  }
+
+  // result modal
+  const overlayResult=document.getElementById("overlay-result");
+  if(overlayResult){
+    overlayResult.addEventListener("click",()=>setState({showResult:null}));
+    let selectedHit=null;
+    const btnHit=document.getElementById("btn-hit");
+    const btnMiss=document.getElementById("btn-miss");
+    const btnConfirm=document.getElementById("btn-confirm");
+    const payoutArea=document.getElementById("payout-area");
+    const selectHit=(val)=>{
+      selectedHit=val;
+      if(val===true){
+        btnHit.style.border="2px solid #C8F135";btnHit.style.color="#C8F135";btnHit.style.background="#C8F13520";
+        btnMiss.style.border="2px solid #2A2A30";btnMiss.style.color="#555";btnMiss.style.background="#1A1A1F";
+        payoutArea.style.display="block";
+      }else{
+        btnMiss.style.border="2px solid #FF5A5A";btnMiss.style.color="#FF5A5A";btnMiss.style.background="#FF5A5A20";
+        btnHit.style.border="2px solid #2A2A30";btnHit.style.color="#555";btnHit.style.background="#1A1A1F";
+        payoutArea.style.display="none";
+      }
+      btnConfirm.style.background="#C8F135";btnConfirm.style.cursor="pointer";
+    };
+    btnHit?.addEventListener("click",()=>selectHit(true));
+    btnMiss?.addEventListener("click",()=>selectHit(false));
+    btnConfirm?.addEventListener("click",()=>{
+      if(selectedHit===null)return;
+      const payout=document.getElementById("f-payout")?.value||"0";
+      setResult(state.showResult.id,selectedHit,payout);
+    });
+  }
+
+  // detail modal
+  const overlayDetail=document.getElementById("overlay-detail");
+  if(overlayDetail){
+    overlayDetail.addEventListener("click",()=>setState({showDetail:null}));
+    document.getElementById("btn-go-result")?.addEventListener("click",()=>{
+      const r=state.showDetail;
+      setState({showDetail:null,showResult:r});
+    });
+    document.getElementById("btn-delete")?.addEventListener("click",()=>{
+      if(confirm("この記録を削除しますか？"))deleteRecord(state.showDetail.id);
+    });
+  }
+}
+
+render();
+</script>
+</body>
+</html>
